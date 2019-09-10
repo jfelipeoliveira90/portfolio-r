@@ -1,0 +1,117 @@
+---
+title: "Portfólio - Felipe Oliveira"
+output: html_notebook
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE, warning=FALSE, message=FALSE)
+```
+
+# Apresentação
+
+Este portfólio tem o objetivo demonstrar os conhecimentos adqueridos na aula de "Programando IA com R" em cima dos dados de homicídios de mulheres disponibilizado pelo IPEA (Instituto de Pesquisa Econômica Aplicada)
+
+# Conhecendo os dados
+
+### Carregando os dados
+
+```{r, results='hide'}
+library('data.table')
+library('tibble')
+library('dplyr')
+
+df <- as_tibble(fread('./dados/homicidios-mulheres-1979-01-15-2017-01-15.csv'))
+```
+
+### Estrutura do arquivo e conteúdo
+
+```{r}
+summary(df)
+```
+
+```{r}
+glimpse(df)
+```
+
+### Verificando valores faltantes
+```{r}
+sum(is.na(df))
+```
+
+### Transformando dados
+```{r}
+df <- df %>%
+  mutate(nome = factor(nome)) %>%
+  rename(
+    estado = nome,
+    total = valor,
+    periodo = período
+  )
+```
+
+# Visualizando os dados
+
+### Total de homicídios por estado
+
+```{r}
+library(ggplot2)
+library(ggthemes)
+
+aggregate(total ~ estado, df, sum) %>%
+  arrange(desc(total)) %>%
+  mutate(estado = factor(estado, levels = estado)) %>%
+  ggplot(aes(estado, total)) + 
+  theme_economist() + 
+  geom_bar(stat="identity", width=.5, fill="tomato3") +
+  theme(axis.text.x = element_text(angle=65, vjust=0.6))
+```
+
+### Total de homicídios por ano
+
+```{r}
+aggregate(total ~ periodo, df, sum) %>%
+  ggplot(aes(periodo, total)) + 
+  theme_economist() + 
+  geom_line(color = "tomato3") +
+  geom_point()
+```
+
+### Histórico dos top 5 estados
+
+```{r, results='hide'}
+top_estados = aggregate(total ~ estado, df, sum) %>%
+  top_n(5)
+```
+
+```{r}
+df %>%
+  filter(estado %in% top_estados$estado) %>%
+  ggplot(aes(periodo, total)) + 
+  theme_economist() + 
+  geom_line(aes(color = estado)) + 
+  scale_x_discrete(limit=seq(1979,2017,1)) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+  xlab(" ") +
+  ylab("Total de homicídios")
+```
+
+### Histórico dos top 5 estados VS Taxa 100 mil habitantes de mulheres
+
+```{r}
+estado <- c("BA", "MG", "PE", "RJ", "SP")
+populacao <- c(7138640, 9955453, 4565767, 8364250, 21184326)
+pop_mulheres <- data.frame(estado, populacao)
+
+pop_mulheres %>%
+  left_join(df, by = "estado") %>%
+  mutate(
+    taxa100mil = total / populacao * 100000
+  ) %>%
+  ggplot(aes(periodo, taxa100mil)) + 
+  theme_economist() + 
+  geom_line(aes(color = estado)) + 
+  scale_x_discrete(limit=seq(1979,2017,1)) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+  xlab(" ") +
+  ylab("Taxa/100 mil habitantes")
+```
